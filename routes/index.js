@@ -8,13 +8,13 @@ import FilesController from '../controllers/FilesController';
 router.get('/status', AppController.getStatus);
 router.get('/stats', AppController.getStats);
 
-router.get('/users', UsersController.postNew);
+router.post('/users', UsersController.postNew);
 router.get('/users/me', UsersController.getMe);
 
 router.get('/connect', AuthController.getConnect);
 router.get('/disconnect', AuthController.getDisconnect);
 
-router.get('/files', FilesController.postUpload)
+router.post('/files', FilesController.postUpload)
 router.get('/files/:id', FilesController.getShow);
 router.get('/files', FilesController.getIndex);
 router.get('/files/:id/data', FilesController.getFile);
