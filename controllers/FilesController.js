@@ -1,4 +1,3 @@
-const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
@@ -6,7 +5,6 @@ const dbClient = require('../db');
 const redisClient = require('../redis');
 
 
-const router = express.Router();
 const upload = multer({ dest: process.env.UPLOAD_DIR || '/tmp/files_manager' });
 
 
@@ -52,6 +50,49 @@ class FilesController {
       const insertedFile = await dbClient.filesCollection.insertOne(fileData);
       res.status(201).json(insertedFile.ops[0]);
     };
+
+    static async getShow(req, res) {
+        const token = req.header('X-Token');
+        const userId = await redisClient.get(`auth_${token}`);
+        if (!userId) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
+      
+        // Retrieve the file document based on the ID
+        const fileId = req.params.id;
+        const file = await dbClient.filesCollection.findOne({ _id: fileId, userId });
+        if (!file) {
+          return res.status(404).json({ error: 'Not found' });
+        }
+      
+        // Return the file document
+        res.json(file);
+    };
+      
+    static async getIndex(req, res) {
+        // Retrieve the user based on the token
+        const token = req.header('X-Token');
+        const userId = await redisClient.get(`auth_${token}`);
+        if (!userId) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
+      
+        // Extract parentId and page from query parameters
+        const { parentId = '0', page = '0' } = req.query;
+        const limit = 20;
+        const skip = parseInt(page) * limit;
+      
+        // Retrieve the list of file documents for the specific parentId with pagination
+        const files = await dbClient.filesCollection
+          .find({ userId, parentId })
+          .limit(limit)
+          .skip(skip)
+          .toArray();
+      
+        // Return the list of file documents
+        res.json(files);
+    };
+    
 }
 
 export default FilesController;
