@@ -3,6 +3,8 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const dbClient = require('../db');
 const redisClient = require('../redis');
+const mime = require('mime-types');
+
 
 
 const upload = multer({ dest: process.env.UPLOAD_DIR || '/tmp/files_manager' });
@@ -10,7 +12,7 @@ const upload = multer({ dest: process.env.UPLOAD_DIR || '/tmp/files_manager' });
 
 class FilesController {
     static async postUpload(req, res) {
-      // Retrieve user based on the token
+
       const token = req.header('X-Token');
       const userId = await redisClient.get(`auth_${token}`);
       if (!userId) {
@@ -57,41 +59,103 @@ class FilesController {
         if (!userId) {
           return res.status(401).json({ error: 'Unauthorized' });
         }
-      
-        // Retrieve the file document based on the ID
+
         const fileId = req.params.id;
         const file = await dbClient.filesCollection.findOne({ _id: fileId, userId });
         if (!file) {
           return res.status(404).json({ error: 'Not found' });
         }
-      
-        // Return the file document
+
         res.json(file);
     };
       
     static async getIndex(req, res) {
-        // Retrieve the user based on the token
+
         const token = req.header('X-Token');
         const userId = await redisClient.get(`auth_${token}`);
         if (!userId) {
           return res.status(401).json({ error: 'Unauthorized' });
         }
-      
-        // Extract parentId and page from query parameters
+
         const { parentId = '0', page = '0' } = req.query;
         const limit = 20;
         const skip = parseInt(page) * limit;
-      
-        // Retrieve the list of file documents for the specific parentId with pagination
+
         const files = await dbClient.filesCollection
           .find({ userId, parentId })
           .limit(limit)
           .skip(skip)
           .toArray();
-      
-        // Return the list of file documents
+
         res.json(files);
     };
+    static async putPublish(req, res) {
+        const token = req.header('X-Token');
+        const userId = await redisClient.get(`auth_${token}`);
+         if (!userId) {
+             return res.status(401).json({ error: 'Unauthorized' });
+         }
+
+         const fileId = req.params.id;
+         const file = await dbClient.filesCollection.findOne({ _id: fileId, userId });
+         if (!file) {
+             return res.status(404).json({ error: 'Not found' });
+        }
+
+         await dbClient.filesCollection.updateOne({ _id: fileId }, { $set: { isPublic: true } });
+
+        res.status(200).json({ ...file, isPublic: true });
+    }
+    static async putUnpublish(req, res) {
+        const token = req.header('X-Token');
+        const userId = await redisClient.get(`auth_${token}`);
+         if (!userId) {
+             return res.status(401).json({ error: 'Unauthorized' });
+         }
+
+        const fileId = req.params.id;
+        const file = await dbClient.filesCollection.findOne({ _id: fileId, userId });
+         if (!file) {
+              return res.status(404).json({ error: 'Not found' });
+            }
+
+        await dbClient.filesCollection.updateOne({ _id: fileId }, { $set: { isPublic: false } });
+
+        res.status(200).json({ ...file, isPublic: false });
+    }
+    static async getFile(req, res) {
+        try {
+            const { id } = req.params;
+
+            const file = await dbClient.filesCollection.findOne({ _id: id });
+
+            if (!file) {
+                return res.status(404).json({ error: 'Not found' });
+            }
+
+            const isAuthenticated = req.userId; 
+            if (!file.isPublic && (!isAuthenticated || file.userId !== req.userId)) {
+                return res.status(404).json({ error: 'Not found' });
+            }
+
+            if (file.type === 'folder') {
+                return res.status(400).json({ error: "A folder doesn't have content" });
+            }
+
+            if (!fs.existsSync(file.localPath)) {
+                return res.status(404).json({ error: 'Not found' });
+            }
+
+            const mimeType = mime.lookup(file.name);
+
+            const fileContent = fs.readFileSync(file.localPath);
+            res.set('Content-Type', mimeType);
+            res.send(fileContent);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
     
 }
 
