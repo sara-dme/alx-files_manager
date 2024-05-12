@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const AppController = require('../controllers/AppController').default;
+import AppController from '../controllers/AppController';
 import UsersController from '../controllers/UsersController';
 import AuthController from '../controllers/AuthController';
 import FilesController from '../controllers/FilesController';
@@ -19,4 +19,4 @@ router.get('/files/:id', FilesController.getShow);
 router.get('/files', FilesController.getIndex);
 router.get('/files/:id/data', FilesController.getFile);
 
-module.exports = router;
+export default router;

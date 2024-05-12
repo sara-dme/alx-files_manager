@@ -2,15 +2,16 @@ import sha1 from 'sha1';
 import { v4 as uuidv4 } from 'uuid';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+import { Buffer } from 'buffer';
 
 class AuthController {
     static async getConnect(req, res) {
         const credEnc = req.header('Authorization').split(' ')[1];
-        const [email, password] =buffer.from(credEnc, 'base64').toString('ascii').split(':');
+        const [email, password] =Buffer.from(credEnc, 'base64').toString('ascii').split(':');
         if (!email || !password) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
-        const user = await dbClient.dbClient.collection('users').findOne({ email, password: sha1(password) });
+        const user = await dbClient.db.collection('users').findOne({ email, password: sha1(password) });
         if (!user || user.password !== sha1(password)) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
@@ -22,7 +23,7 @@ class AuthController {
     static async getDisconnect(req, res) {
         const token = req.header('X-Token');
         const userId = await redisClient.get(`auth_${token}`);
-        if (!userId) {
+        if (userId === null || userId === undefined) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
