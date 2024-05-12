@@ -2,8 +2,6 @@ import sha1 from 'sha1';
 import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
-import {usersQueue } from '../worker';
-import { errorMonitor } from 'mongodb/lib/apm';
 
 class UsersController {
     static async postNew(req, res) {
@@ -15,13 +13,13 @@ class UsersController {
         if (!password) {
             return res.status(400).json({ error: 'Missing password' });
         }
-        const userExists = await dbClient.dbClient.collection('users'.findOne({ email}));
+        const userExists = await dbClient.dbClient.collection('users').findOne({ email});
         if (userExists) {
             return res.status(400).json({ error: 'Already exist' });
         }
         const hashedPassword = sha1(password);
         
-        const result = await dbClient.dbClient.collection('users').insertOne({ email, password:hashedPassword });
+        const result = await dbClient.dbClient.collection('users').insertOne({ email,  password:hashedPassword });
         usersQueue.add({ userId:result.insertedId});
         return res.status(201).json({ id: result.insertedId, email });
     }

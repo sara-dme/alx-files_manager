@@ -1,13 +1,12 @@
-const multer = require('multer');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const dbClient = require('../db');
-const redisClient = require('../redis');
+const dbClient = require('../utils/db');
+const redisClient = require('../utils/redis');
 const mime = require('mime-types');
 
 
 
-const upload = multer({ dest: process.env.UPLOAD_DIR || '/tmp/files_manager' });
+const upload = process.env.FOLDER_PATH || '/tmp/files_manager';
 
 
 class FilesController {
