@@ -10,8 +10,8 @@ const AppController = {
     },
     getStats: async (req, res) => {
         try {
-          const userTotal = await dbClient.nbUsers();
-          const filesTotal = await dbClient.nbFiles();
+          const userTotal = await db.nbUsers();
+          const filesTotal = await db.nbFiles();
         res.status(200).json({ users: userTotal, files: filesTotal });
         } catch (error) {
             console.error("Error fetching stats:", error);
