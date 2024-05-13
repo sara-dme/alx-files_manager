@@ -9,7 +9,7 @@ router.get('/status', (req, res) => {AppController.getStatus(req, res);
 });
 router.get('/stats', (req, res) => {AppController.getStats(req, res);
 });
-router.post('/users', UserController.postNew);
+router.post('/users', (req, res) => {UserController.postNew(req, res);})
 router.get('/users/me', UserController.getMe);
 
 router.get('/connect', AuthController.getConnect);
