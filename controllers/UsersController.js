@@ -6,7 +6,7 @@ import redisClient from '../utils/redis';
 class UsersController {
     static async postNew(req, res) {
       try {
-        const {email, password} =req.body;
+        const {email, password} = req.body;
 
         if (!email) {
             return res.status(400).json({ error: 'Missing email' });
@@ -39,7 +39,7 @@ class UsersController {
 
         const user = await users.findOne({ _id: ObjId });
         if (!user) return res.status(401).json({ error: 'Unauthorized'});
-        return res.status(200).json({id: user.__id, email: user.email });
+        return res.status(200).json({id: userId, email: user.email });
     }
 }
 
