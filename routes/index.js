@@ -9,15 +9,15 @@ router.get('/status', (req, res) => {AppController.getStatus(req, res);
 });
 router.get('/stats', (req, res) => {AppController.getStats(req, res);
 });
-router.post('/users', (req, res) => {UsersController.postNew(req, res);})
-router.get('/users/me', (req, res) => {UsersController.getMe(req, res);})
+router.post('/users', UsersController.postNew);
+router.get('/users/me', UsersController.getMe);
 
 router.get('/connect', AuthController.getConnect);
 router.get('/disconnect', AuthController.getDisconnect);
 
-router.get('/files', FilesController.postUpload)
+router.post('/files', FilesController.postUpload)
 router.get('/files/:id', FilesController.getShow);
 router.get('/files', FilesController.getIndex);
 router.get('/files/:id/data', FilesController.getFile);
 
-module.exports = router;
+export default router;

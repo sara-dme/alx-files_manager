@@ -1,7 +1,8 @@
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
-const dbClient = require('../utils/db');
-const redisClient = require('../utils/redis');
+import dbClient from '../utils/db';
+import redisClient from '../utils/redis';  
+import { ObjectId } from 'mongodb';
 const mime = require('mime-types');
 
 
@@ -18,18 +19,19 @@ class FilesController {
         return res.status(401).json({ error: "Unauthorized" });
       }
       if (!token) return res.status(401).json({ error: 'Unauthorized' });
-      const { name, type, parentId = 0, isPublic = false, data } = req.body;
+      const { name, type, isPublic = false, data } = req.body;
       if (!name) {
         return res.status(400).json({ error: "Missing name"});
       }
       if (!type || !['folder', 'file', 'image'].includes(type)) {
         return res.status(400).json({ error: "Missing type"});
       }
-      if (!req.file && type !== 'folder') {
+      if (!data && type !== 'folder') {
         return res.status(400).json({ error: "Missing data"});
       }
-      if (parentId !== 0) {
-        const parentFile = await dbClient.fileCollection.findOne({_id: parentId });
+      let parentId = req.body.parentId || '0';
+      if (parentId !== '0') {
+        const parentFile = await dbClient.dbClient.collection('files').findOne({_id: parentId });
         if (!parentFile) {
             return res.status(400).json({ error: "Parent not found"});
         }
@@ -37,19 +39,25 @@ class FilesController {
             return res.status(400).json({ error: "Parent is not a folder"})
         }
       }
+      parentId = parentId !== '0' ? ObjectId(parentId) : '0';
+
       const fileData = {
-        userId,
+        userId: ObjectId(userId),
         name,
         type,
-        parentId,
-        isPublic,
+        parentId: parentId !== '0' ? ObjectId(parentId) : '0',
+        isPublic: isPublic || false,
       };
-      if (type === 'file' || type === 'image') {
-        const filePath = `${process.env.FOLDER_PATH || '/tmp/files_manager'}/${uuidv4()}`;
+      
+      if (type === 'folder') {
+        const newfolder = await dbClient.dbClient.collection('files').insertOne({
+          userId, name, type, isPublic: isPublic || false, parentId,});
+        fileData.parentId = parentId === '0' ? 0 : ObjectId(parentId);
+        return res.status(201).json({ id: newfolder.insertedId, ...fileData });
       }
-      fs.renameSync(req.file.path, filePath);
+      const filePath = `${upload}/${uuidv4()}`;
       fileData.localPath = filePath;
-      const insertedFile = await dbClient.filesCollection.insertOne(fileData);
+      const insertedFile = await dbClient.dbClient.collection('files').insertOne(fileData);
       res.status(201).json(insertedFile.ops[0]);
     };
 
@@ -61,7 +69,7 @@ class FilesController {
         }
 
         const fileId = req.params.id;
-        const file = await dbClient.filesCollection.findOne({ _id: fileId, userId });
+        const file = await dbClient.dbClient.collection('files').findOne({ _id: fileId, userId });
         if (!file) {
           return res.status(404).json({ error: 'Not found' });
         }
@@ -81,7 +89,7 @@ class FilesController {
         const limit = 20;
         const skip = parseInt(page) * limit;
 
-        const files = await dbClient.filesCollection
+        const files = await dbClient.dbClient.collection('files')
           .find({ userId, parentId })
           .limit(limit)
           .skip(skip)
@@ -97,12 +105,12 @@ class FilesController {
          }
 
          const fileId = req.params.id;
-         const file = await dbClient.filesCollection.findOne({ _id: fileId, userId });
+         const file = await dbClient.dbClient.collection('files').findOne({ _id: fileId, userId });
          if (!file) {
              return res.status(404).json({ error: 'Not found' });
         }
 
-         await dbClient.filesCollection.updateOne({ _id: fileId }, { $set: { isPublic: true } });
+         await dbClient.dbClient.collection('files').updateOne({ _id: fileId }, { $set: { isPublic: true } });
 
         res.status(200).json({ ...file, isPublic: true });
     }
@@ -114,12 +122,12 @@ class FilesController {
          }
 
         const fileId = req.params.id;
-        const file = await dbClient.filesCollection.findOne({ _id: fileId, userId });
+        const file = await dbClient.dbClient.collection('files').findOne({ _id: fileId, userId });
          if (!file) {
               return res.status(404).json({ error: 'Not found' });
             }
 
-        await dbClient.filesCollection.updateOne({ _id: fileId }, { $set: { isPublic: false } });
+        await dbClient.dbClient.collection('files').updateOne({ _id: fileId }, { $set: { isPublic: false } });
 
         res.status(200).json({ ...file, isPublic: false });
     }
@@ -127,7 +135,7 @@ class FilesController {
         try {
             const { id } = req.params;
 
-            const file = await dbClient.filesCollection.findOne({ _id: id });
+            const file = await dbClient.dbClient.collection('files').findOne({ _id: id });
 
             if (!file) {
                 return res.status(404).json({ error: 'Not found' });
